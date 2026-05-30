@@ -1,0 +1,35 @@
+#!/bin/bash
+echo "=== ЗАПУСК ОБОГРЕВАТЕЛЬНОГО КОНТУРА ==="
+echo "Нажмите Ctrl+C для выключения обогрева и перехода в режим охлаждения."
+
+cleanup() {
+    echo -e "\n=== ОСТАНОВКА ОБОГРЕВА ==="
+    echo "Завершение процессов стресс-тестирования..."
+    
+    kill $PID_CPU $PID_GPU 2>/dev/null
+    
+    killall stress-ng GpuTest 2>/dev/null
+    
+    echo "Система переходит в штатный режим охлаждения."
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+stress-ng --cpu 0 --cpu-method matrixprod &
+PID_CPU=$!
+
+if command -v prime-run &> /dev/null; then
+    echo "Обнаружен prime-run. Запуск GPU в режиме максимальной производительности..."
+    prime-run gputest /test=fur /width=1024 /height=768 &
+    PID_GPU=$!
+else
+    echo "prime-run не найден. Запуск GPU в обычном режиме..."
+    gputest /test=fur /width=1024 /height=768 &
+    PID_GPU=$!
+fi
+
+while true; do
+    sleep 1
+done
+
